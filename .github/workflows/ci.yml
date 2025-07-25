@@ -51,7 +51,7 @@ jobs:
       run: dotnet publish --no-build --configuration ${{ env.buildConfiguration }} --output ${{ github.workspace }}/output
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: drop
         path: ${{ github.workspace }}/output
