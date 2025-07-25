@@ -1,18 +1,48 @@
-name: CI Test
+name: Build ASP.NET Core App
 
 on:
   push:
-    branches: [ main ]
+    branches: [ build-pipeline ]
   pull_request:
-    branches: [ main ]
+    branches: [ build-pipeline ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      buildConfiguration: Release
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Say Hello
-      run: echo "👋 Hello from GitHub Actions!"
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '6.x'
+
+    - name: Install Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Run npm install
+      run: npm install
+
+    - name: Compile Sass assets
+      run: |
+        ./node_modules/.bin/node-sass Tailspin.SpaceGame.Web/wwwroot --output Tailspin.SpaceGame.Web/wwwroot
+
+    - name: Run gulp tasks
+      run: npx gulp
+
+    - name: Write build info
+      run: echo "${{ github.workflow }}, ${{ github.run_id }}, ${{ github.run_number }}" > Tailspin.SpaceGame.Web/wwwroot/buildinfo.txt
+
+    - name: Restore project dependencies
+      run: dotnet restore **/*.csproj
+
+    - name: Build the project - Release
+      run: dotnet build **/*.csproj --no-restore --configuration Release
+
