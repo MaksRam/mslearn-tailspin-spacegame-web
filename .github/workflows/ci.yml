@@ -56,6 +56,4 @@ steps:
   displayName: 'Publish Artifact: drop'
   condition: succeeded()
 
-    - name: Build the project - Release
-      run: dotnet build **/*.csproj --no-restore --configuration Release
 
