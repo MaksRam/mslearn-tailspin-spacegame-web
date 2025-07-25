@@ -1,5 +1,7 @@
-trigger:
-- '*'
+on:
+  push:
+    branches:
+      - build-pipeline
 
 pool:
   name: 'Default'  # или ubuntu-latest, если не используешь кастомный агент
