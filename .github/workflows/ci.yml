@@ -1,47 +1,60 @@
-name: Build ASP.NET Core App
+trigger:
+- '*'
 
-on:
-  push:
-    branches: [ build-pipeline ]
-  pull_request:
-    branches: [ build-pipeline ]
+pool:
+  name: 'Default'  # или ubuntu-latest, если не используешь кастомный агент
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+variables:
+  buildConfiguration: 'Release'
+  wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
+  dotnetSdkVersion: '6.x'
 
-    env:
-      buildConfiguration: Release
+steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET SDK $(dotnetSdkVersion)'
+  inputs:
+    version: '$(dotnetSdkVersion)'
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+- task: Npm@1
+  displayName: 'Run npm install'
+  inputs:
+    verbose: false
 
-    - name: Setup .NET SDK
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '8.0.x'
+- script: './node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
+  displayName: 'Compile Sass assets'
 
-    - name: Install Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+- task: gulp@1
+  displayName: 'Run gulp tasks'
 
-    - name: Run npm install
-      run: npm install
+- script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
+  displayName: 'Write build info'
+  workingDirectory: $(wwwrootDir)
 
-    - name: Compile Sass assets
-      run: |
-        ./node_modules/.bin/node-sass Tailspin.SpaceGame.Web/wwwroot --output Tailspin.SpaceGame.Web/wwwroot
+- task: DotNetCoreCLI@2
+  displayName: 'Restore project dependencies'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
 
-    - name: Run gulp tasks
-      run: npx gulp
+- task: DotNetCoreCLI@2
+  displayName: 'Build the project - $(buildConfiguration)'
+  inputs:
+    command: 'build'
+    arguments: '--no-restore --configuration $(buildConfiguration)'
+    projects: '**/*.csproj'
 
-    - name: Write build info
-      run: echo "${{ github.workflow }}, ${{ github.run_id }}, ${{ github.run_number }}" > Tailspin.SpaceGame.Web/wwwroot/buildinfo.txt
+- task: DotNetCoreCLI@2
+  displayName: 'Publish the project - $(buildConfiguration)'
+  inputs:
+    command: 'publish'
+    projects: '**/*.csproj'
+    publishWebProjects: false
+    arguments: '--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
+    zipAfterPublish: true
 
-    - name: Restore project dependencies
-      run: dotnet restore **/*.csproj
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: drop'
+  condition: succeeded()
 
     - name: Build the project - Release
       run: dotnet build **/*.csproj --no-restore --configuration Release
